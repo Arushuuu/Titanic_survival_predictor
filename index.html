@@ -1,0 +1,468 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Titanic Survival Predictor</title>
+    
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400..900;1,400..900&family=Roboto+Mono:ital,wght@0,100..700;1,100..700&display=swap" rel="stylesheet">
+
+    <style>
+        /* --- COLOR PALETTE & VARIABLES --- */
+        :root {
+            --color-bg: #080616;
+            --color-sidebar: rgba(26, 25, 83, 0.85); /* #1a1953 with slight transparency */
+            --color-panel: rgba(22, 46, 147, 0.3);   /* #162e93 glass effect */
+            --color-accent: #2f2fe4;                 /* Brightest blue for buttons */
+            --text-main: #d1d5db;                    /* Muted gray for sad vibe */
+            --text-heading: #ffffff;
+        }
+
+        /* --- GLOBAL STYLES --- */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: "Roboto Mono", monospace;
+            background-color: var(--color-bg);
+            color: var(--text-main);
+            min-height: 100vh;
+            display: flex;
+            overflow-x: hidden;
+        }
+
+        /* The Sinking Titanic Background with Low Opacity */
+        body::before {
+            content: "";
+            position: fixed;
+            top: 0; 
+            left: 0; 
+            width: 100vw; 
+            height: 100vh;
+            background-image: url('https://m.media-amazon.com/images/I/614jwILQBpL.jpg');
+            background-size: cover;
+            background-position: center;
+            opacity: 0.30; /* Keeps it in the background, sad and depressing vibe */
+            z-index: -1;
+        }
+
+        h1, h2, h3 {
+            font-family: "Playfair Display", serif;
+            color: var(--text-heading);
+            font-weight: 500;
+            letter-spacing: 1px;
+        }
+
+        /* --- LAYOUT --- */
+        .app-container {
+            display: flex;
+            width: 100%;
+            height: 100vh;
+        }
+
+        /* --- SIDEBAR --- */
+        .sidebar {
+            width: 200px;
+            background-color: var(--color-sidebar);
+            backdrop-filter: blur(10px);
+            border-right: 1px solid rgba(255, 255, 255, 0.05);
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            padding: 2rem;
+        }
+
+        .sidebar-header h2 {
+            font-size: 1.8rem;
+            margin-bottom: 2rem;
+            border-bottom: 1px solid var(--color-panel);
+            padding-bottom: 1rem;
+        }
+
+        .nav-links {
+            list-style: none;
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+        }
+
+        .nav-links li {
+            cursor: pointer;
+            padding: 0.8rem 1rem;
+            border-radius: 4px;
+            transition: all 0.3s ease;
+            font-size: 1.1rem;
+            border-left: 3px solid transparent;
+        }
+
+        .nav-links li:hover {
+            background-color: var(--color-panel);
+        }
+
+        .nav-links li.active-nav {
+            background-color: var(--color-panel);
+            border-left: 3px solid var(--color-accent);
+            color: white;
+        }
+
+        /* --- FOOTER --- */
+        .footer {
+            font-size: 0.8rem;
+            color: #888;
+            line-height: 1.6;
+        }
+
+        .footer a {
+            color: var(--text-main);
+            text-decoration: none;
+            border-bottom: 1px dotted var(--color-accent);
+            transition: color 0.3s;
+        }
+
+        .footer a:hover {
+            color: var(--color-accent);
+        }
+
+        /* --- MAIN CONTENT AREA --- */
+        .main-content {
+            flex: 1;
+            padding: 4rem;
+            overflow-y: auto;
+            display: flex;
+            justify-content: center;
+            align-items: flex-start;
+        }
+
+        /* Hide sections not currently active */
+        .section {
+            display: none;
+            max-width: 800px;
+            width: 100%;
+            animation: fadeIn 0.8s ease;
+        }
+
+        .section.active {
+            display: block;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        /* --- HOME SECTION STYLES --- */
+        .home-card {
+            background: rgba(8, 6, 22, 0.7);
+            border: 1px solid var(--color-panel);
+            padding: 3rem;
+            border-radius: 8px;
+            backdrop-filter: blur(5px);
+        }
+
+        .home-card h1 {
+            font-size: 2.5rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .home-card p {
+            font-size: 1.1rem;
+            line-height: 1.8;
+            margin-bottom: 1.5rem;
+            text-align: justify;
+        }
+
+        .stats-box {
+            display: flex;
+            gap: 2rem;
+            margin-top: 2rem;
+            padding-top: 2rem;
+            border-top: 1px solid var(--color-panel);
+        }
+
+        .stat {
+            background: var(--color-panel);
+            padding: 1.5rem;
+            border-radius: 6px;
+            flex: 1;
+            text-align: center;
+        }
+
+        .stat h3 {
+            font-size: 2rem;
+            margin-bottom: 0.5rem;
+            font-family: "Roboto Mono", monospace;
+        }
+
+        .stat.died h3 { color: #ff4c4c; }
+        .stat.survived h3 { color: #4cffb0; }
+
+        /* --- PREDICTOR FORM STYLES --- */
+        .form-container {
+            background: rgba(8, 6, 22, 0.7);
+            border: 1px solid var(--color-panel);
+            padding: 3rem;
+            border-radius: 8px;
+            backdrop-filter: blur(5px);
+        }
+
+        .form-container h1 {
+            font-size: 2.2rem;
+            margin-bottom: 2rem;
+            text-align: center;
+        }
+
+        .input-group {
+            margin-bottom: 1.5rem;
+        }
+
+        .input-group label {
+            display: block;
+            margin-bottom: 0.5rem;
+            color: #aaa;
+            font-size: 0.9rem;
+        }
+
+        .input-group input, .input-group select {
+            width: 100%;
+            padding: 0.8rem;
+            background-color: rgba(255, 255, 255, 0.05);
+            border: 1px solid var(--color-panel);
+            color: white;
+            font-family: "Roboto Mono", monospace;
+            border-radius: 4px;
+            outline: none;
+            transition: border-color 0.3s;
+        }
+
+        .input-group input:focus, .input-group select:focus {
+            border-color: var(--color-accent);
+        }
+
+        .grid-2 {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1.5rem;
+        }
+
+        button {
+            width: 100%;
+            padding: 1rem;
+            background-color: var(--color-accent);
+            color: white;
+            border: none;
+            border-radius: 4px;
+            font-family: "Roboto Mono", monospace;
+            font-size: 1.1rem;
+            font-weight: bold;
+            cursor: pointer;
+            transition: background-color 0.3s, transform 0.1s;
+            margin-top: 1rem;
+        }
+
+        button:hover {
+            background-color: #3b3be6;
+        }
+
+        button:active {
+            transform: scale(0.98);
+        }
+
+        #result {
+            margin-top: 2rem;
+            padding: 1.5rem;
+            text-align: center;
+            font-size: 1.5rem;
+            border-radius: 4px;
+            display: none;
+            font-family: "Playfair Display", serif;
+        }
+
+        .result-survived { background-color: rgba(76, 255, 176, 0.1); color: #4cffb0; border: 1px solid #4cffb0; }
+        .result-died { background-color: rgba(255, 76, 76, 0.1); color: #ff4c4c; border: 1px solid #ff4c4c; }
+        .result-error { background-color: rgba(255, 204, 0, 0.1); color: #ffcc00; border: 1px solid #ffcc00; }
+
+    </style>
+</head>
+<body>
+
+    <div class="app-container">
+        
+        <nav class="sidebar">
+            <div>
+                <div class="sidebar-header">
+                    <h2>RMS Titanic</h2>
+                </div>
+                <ul class="nav-links">
+                    <li id="nav-home" class="active-nav" onclick="showSection('home')">Home</li>
+                    <li id="nav-predict" onclick="showSection('predict')">Predict Survival</li>
+                </ul>
+            </div>
+
+            <div class="footer">
+                <p>Designed & Developed by Arushi</p>
+                <br>
+                <a href="https://www.linkedin.com/in/arushi-shandilya-0654b03b4" target="_blank">LinkedIn</a> | 
+                <a href="https://github.com/Arushuuu" target="_blank">GitHub</a>
+            </div>
+        </nav>
+
+        <main class="main-content">
+            
+            <section id="home-section" class="section active">
+                <div class="home-card">
+                    <h1>The Tragedy of 1912</h1>
+                    <p>On April 10, 1912, the RMS Titanic set sail on its maiden voyage from Southampton to New York City. Heralded as "unsinkable," the luxury ocean liner represented the pinnacle of early 20th-century engineering.</p>
+                    <p>Just four days into the journey, late on the night of April 14, the ship struck an iceberg in the freezing waters of the North Atlantic. In the early hours of April 15, the Titanic foundered, resulting in one of the most devastating maritime disasters in modern history.</p>
+                    <p>Due to outdated maritime safety regulations, the ship carried only enough lifeboats for about half of those on board. The tragedy highlighted severe flaws in safety standards and the stark disparities in survival rates based on class and gender.</p>
+                    
+                    <div class="stats-box">
+                        <div class="stat died">
+                            <h3>~1,500</h3>
+                            <p>Lives Lost</p>
+                        </div>
+                        <div class="stat survived">
+                            <h3>~710</h3>
+                            <p>Survivors</p>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <section id="predict-section" class="section">
+                <div class="form-container">
+                    <h1>Survival Predictor</h1>
+                    <form id="predictionForm">
+                        
+                        <div class="grid-2">
+                            <div class="input-group">
+                                <label for="Pclass">Ticket Class</label>
+                                <select id="Pclass" required>
+                                    <option value="1">1st Class (Luxury)</option>
+                                    <option value="2">2nd Class (Middle)</option>
+                                    <option value="3">3rd Class (Lower)</option>
+                                </select>
+                            </div>
+                            
+                            <div class="input-group">
+                                <label for="Sex">Biological Sex</label>
+                                <select id="Sex" required>
+                                    <option value="female">Female</option>
+                                    <option value="male">Male</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div class="grid-2">
+                            <div class="input-group">
+                                <label for="Age">Age in Years</label>
+                                <input type="number" id="Age" placeholder="e.g. 25" required step="any" min="0" max="100">
+                            </div>
+                            
+                            <div class="input-group">
+                                <label for="Fare">Ticket Price (Fare)</label>
+                                <input type="number" id="Fare" placeholder="e.g. 30.50" required step="any" min="0">
+                            </div>
+                        </div>
+
+                        <div class="grid-2">
+                            <div class="input-group">
+                                <label for="SibSp">Siblings/Spouses Aboard</label>
+                                <input type="number" id="SibSp" placeholder="0" required min="0">
+                            </div>
+                            
+                            <div class="input-group">
+                                <label for="Parch">Parents/Children Aboard</label>
+                                <input type="number" id="Parch" placeholder="0" required min="0">
+                            </div>
+                        </div>
+
+                        <div class="input-group">
+                            <label for="Embarked">Port of Embarkation</label>
+                            <select id="Embarked" required>
+                                <option value="C">Cherbourg (France)</option>
+                                <option value="Q">Queenstown (Ireland)</option>
+                                <option value="S">Southampton (England)</option>
+                            </select>
+                        </div>
+
+                        <button type="submit">Query Machine Learning Model</button>
+                    </form>
+
+                    <div id="result"></div>
+                </div>
+            </section>
+
+        </main>
+    </div>
+
+    <script>
+        // 1. Navigation Logic
+        function showSection(sectionName) {
+            // Hide all sections
+            document.querySelectorAll('.section').forEach(sec => sec.classList.remove('active'));
+            document.querySelectorAll('.nav-links li').forEach(nav => nav.classList.remove('active-nav'));
+            document.getElementById(`${sectionName}-section`).classList.add('active');
+            document.getElementById(`nav-${sectionName}`).classList.add('active-nav');
+        }
+
+        // 2. Prediction API Logic
+        const form = document.getElementById('predictionForm');
+        const resultDiv = document.getElementById('result');
+
+        // PUT YOUR RENDER URL HERE (e.g., https://titanic-api-abc.onrender.com/predict)
+        const BACKEND_URL = "https://titanic-survival-predictor-n3f0.onrender.com/predict";
+
+        form.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            // Reset result box
+            resultDiv.style.display = 'block';
+            resultDiv.className = '';
+            resultDiv.innerText = 'Consulting model...';
+            resultDiv.style.color = '#fff';
+
+            // Gather data from form
+            const data = {
+                Pclass: document.getElementById('Pclass').value,
+                Sex: document.getElementById('Sex').value,
+                Age: document.getElementById('Age').value,
+                SibSp: document.getElementById('SibSp').value,
+                Parch: document.getElementById('Parch').value,
+                Fare: document.getElementById('Fare').value,
+                Embarked: document.getElementById('Embarked').value
+            };
+
+            try {
+                const response = await fetch(BACKEND_URL, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(data)
+                });
+
+                const json = await response.json();
+
+                if (response.ok) {
+                    resultDiv.innerText = `Prediction: Passenger ${json.prediction}`;
+                    if (json.prediction === "Survived") {
+                        resultDiv.classList.add('result-survived');
+                    } else {
+                        resultDiv.classList.add('result-died');
+                    }
+                } else {
+                    resultDiv.innerText = `Error: ${json.error}`;
+                    resultDiv.classList.add('result-error');
+                }
+            } catch (err) {
+                resultDiv.innerText = "Error connecting to the API. Is the server awake?";
+                resultDiv.classList.add('result-error');
+                console.error(err);
+            }
+        });
+    </script>
+</body>
+</html>
