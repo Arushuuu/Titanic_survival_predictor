@@ -10,7 +10,7 @@ CORS(app)
 
 # --- NEW: Use absolute path to reliably find the model file ---
 basedir = os.path.abspath(os.path.dirname(__file__))
-model_path = os.path.join(basedir, 'titanic_rf_model.pkl')
+model_path = os.path.join(basedir, 'Titanic_rf.pkl')
 
 # Load the trained model
 try:
