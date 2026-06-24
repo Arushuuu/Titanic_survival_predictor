@@ -1,3 +1,4 @@
+import os
 from flask import Flask, request, jsonify
 from flask_cors import CORS
 import joblib
@@ -7,8 +8,17 @@ app = Flask(__name__)
 # Enable CORS so your frontend can communicate with this backend
 CORS(app)
 
+# --- NEW: Use absolute path to reliably find the model file ---
+basedir = os.path.abspath(os.path.dirname(__file__))
+model_path = os.path.join(basedir, 'titanic_rf_model.pkl')
+
 # Load the trained model
-model = joblib.load('titanic_rf_model.pkl')
+try:
+    model = joblib.load(model_path)
+    print("Model loaded successfully!")
+except Exception as e:
+    print(f"Error loading model: {e}")
+    model = None
 
 @app.route('/')
 def home():
@@ -16,6 +26,9 @@ def home():
 
 @app.route('/predict', methods=['POST'])
 def predict():
+    if model is None:
+        return jsonify({'error': 'Model failed to load on the server.'}), 500
+
     try:
         data = request.json
         
@@ -43,8 +56,12 @@ def predict():
         
         return jsonify({'prediction': result})
 
+    except KeyError as e:
+        return jsonify({'error': f'Missing or incorrect data field: {str(e)}'}), 400
     except Exception as e:
         return jsonify({'error': str(e)}), 400
 
 if __name__ == '__main__':
-    app.run(debug=True)
+    # Use port Render assigns, or default to 5000 locally
+    port = int(os.environ.get("PORT", 5000))
+    app.run(host='0.0.0.0', port=port)
