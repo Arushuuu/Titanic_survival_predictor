@@ -1,69 +1,84 @@
 import os
+import traceback
+import joblib
+import numpy as np
 from flask import Flask, request, jsonify
 from flask_cors import CORS
-import joblib
-import pandas as pd
 
+# Initialize Flask and enable CORS (Cross-Origin Resource Sharing)
 app = Flask(__name__)
-# Enable CORS so your frontend can communicate with this backend
-CORS(app)
+CORS(app) 
 
-# --- NEW: Use absolute path to reliably find the model file ---
+# ==========================================
+# 1. BULLETPROOF MODEL LOADING
+# ==========================================
 basedir = os.path.dirname(os.path.abspath(__file__))
-model_path = os.path.join(basedir, 'Titanic_rf.pkl')
+model_path = os.path.join(basedir, "Titanic_rf.pkl")
 
-# Load the trained model
+model = None
 try:
+    print("--- ATTEMPTING TO LOAD MODEL ---")
+    print(f"Target Path: {model_path}")
     model = joblib.load(model_path)
-    print("Model loaded successfully!")
+    print("--- MODEL LOADED SUCCESSFULLY ---")
 except Exception as e:
-    print(f"Error loading model: {e}")
-    model = None
+    print("--- ERROR LOADING MODEL ---")
+    print(f"Error Message: {e}")
+    traceback.print_exc() # Prints the exact internal system failure
 
-@app.route('/')
+# ==========================================
+# 2. HEALTH CHECK ROUTE (For the browser)
+# ==========================================
+@app.route('/', methods=['GET'])
 def home():
-    return "Titanic ML API is running!"
-
-@app.route('/predict', methods=['POST'])
-def predict():
     if model is None:
-        return jsonify({'error': 'Model failed to load on the server.'}), 500
+        return "Titanic API is running, BUT THE MODEL FAILED TO LOAD. Check Render logs.", 500
+    return "Titanic API is running perfectly and the Model is loaded!", 200
+
+# ==========================================
+# 3. PREDICTION ROUTE (For the frontend)
+# ==========================================
+@app.route('/predict', methods=['POST', 'OPTIONS'])
+def predict():
+    # Handle preflight requests from GitHub Pages
+    if request.method == 'OPTIONS':
+        return jsonify({}), 200
+
+    # Ensure model exists before trying to predict
+    if model is None:
+        return jsonify({"error": "Model not loaded on the server."}), 500
 
     try:
-        data = request.json
+        # Get JSON data from frontend request
+        data = request.get_json()
         
-        # Manual mapping based on alphabetical LabelEncoder sorting from your notebook
-        sex_map = {'female': 0, 'male': 1}
-        embarked_map = {'C': 0, 'Q': 1, 'S': 2}
+        # Extract features (Ensure these match your frontend JavaScript keys)
+        pclass = float(data.get('Pclass', 3))
+        sex = float(data.get('Sex', 0))
+        age = float(data.get('Age', 29))
+        sibsp = float(data.get('SibSp', 0))
+        parch = float(data.get('Parch', 0))
+        fare = float(data.get('Fare', 32.0))
+        embarked = float(data.get('Embarked', 0))
         
-        # Structure the data exactly as the model expects it: 
-        # [Pclass, Sex, Age, SibSp, Parch, Fare, Embarked]
-        features = pd.DataFrame([{
-            'Pclass': int(data['Pclass']),
-            'Sex': sex_map[data['Sex']],
-            'Age': float(data['Age']),
-            'SibSp': int(data['SibSp']),
-            'Parch': int(data['Parch']),
-            'Fare': float(data['Fare']),
-            'Embarked': embarked_map[data['Embarked']]
-        }])
+        # Format for Scikit-Learn (2D array)
+        features = np.array([[pclass, sex, age, sibsp, parch, fare, embarked]])
         
-        # Make prediction
+        # Generate Prediction
         prediction = model.predict(features)[0]
         
-        # Convert numeric prediction back to readable text
-        result = "Survived" if prediction == 1 else "Not Survived"
-        
-        return jsonify({'prediction': result})
+        # Send response back to the website
+        return jsonify({
+            "prediction": int(prediction),
+            "status": "success"
+        })
 
-    except KeyError as e:
-        return jsonify({'error': f'Missing or incorrect data field: {str(e)}'}), 400
     except Exception as e:
-        return jsonify({'error': str(e)}), 400
+        print("--- PREDICTION ERROR ---")
+        traceback.print_exc()
+        return jsonify({"error": str(e)}), 400
 
+# Run the server
 if __name__ == '__main__':
-    # Use port Render assigns, or default to 5000 locally
-    port = int(os.environ.get("PORT", 5000))
-    app.run(host='0.0.0.0', port=port)
-
+    app.run(host='0.0.0.0', port=5000, debug=True)
 
