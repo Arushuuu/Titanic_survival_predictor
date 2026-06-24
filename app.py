@@ -9,7 +9,7 @@ app = Flask(__name__)
 CORS(app)
 
 # --- NEW: Use absolute path to reliably find the model file ---
-basedir = os.path.abspath(os.path.dirname(__file__))
+basedir = os.path.dirname(os.path.abspath(__file__))
 model_path = os.path.join(basedir, 'Titanic_rf.pkl')
 
 # Load the trained model
@@ -67,4 +67,3 @@ if __name__ == '__main__':
     app.run(host='0.0.0.0', port=port)
 
 
-    
