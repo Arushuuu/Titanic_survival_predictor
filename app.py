@@ -1,6 +1,7 @@
 import os
 import traceback
 import joblib
+import pickle
 import numpy as np
 from flask import Flask, request, jsonify
 from flask_cors import CORS
@@ -17,14 +18,16 @@ model_path = os.path.join(basedir, "Titanic_rf.pkl")
 
 model = None
 try:
-    print("--- ATTEMPTING TO LOAD MODEL ---")
+    print("--- ATTEMPTING TO LOAD MODEL VIA PICKLE ---")
     print(f"Target Path: {model_path}")
-    model = joblib.load(model_path)
+    with open(model_path, 'rb') as file:
+        model = pickle.load(file)
     print("--- MODEL LOADED SUCCESSFULLY ---")
 except Exception as e:
     print("--- ERROR LOADING MODEL ---")
     print(f"Error Message: {e}")
-    traceback.print_exc() # Prints the exact internal system failure
+    traceback.print_exc()
+    model = None
 
 # ==========================================
 # 2. HEALTH CHECK ROUTE (For the browser)
