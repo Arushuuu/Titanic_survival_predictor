@@ -14,7 +14,7 @@ CORS(app)
 # 1. BULLETPROOF MODEL LOADING
 # ==========================================
 basedir = os.path.dirname(os.path.abspath(__file__))
-model_path = os.path.join(basedir, "Titanic_rf.pkl")
+model_path = os.path.join(basedir, "final_titanic_model.pkl")
 
 model = None
 try:
