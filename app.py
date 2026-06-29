@@ -1,21 +1,15 @@
 import os
-import traceback
-import joblib
 import pickle
-import numpy as np
-from flask import Flask, request, jsonify
-from flask_cors import CORS
+import traceback
+from flask import Flask, request, jsonify, send_from_directory
 
-# Initialize Flask and enable CORS (Cross-Origin Resource Sharing)
-app = Flask(__name__)
-CORS(app) 
+app = Flask(__name__, static_folder='.', static_url_path='')
+basedir = os.path.abspath(os.path.dirname(__file__))
 
-# ==========================================
-# 1. BULLETPROOF MODEL LOADING
-# ==========================================
-basedir = os.path.dirname(os.path.abspath(__file__))
+# Pointing explicitly to the new, clean model file
 model_path = os.path.join(basedir, "final_titanic_model.pkl")
 
+# Load the model at startup
 model = None
 try:
     print("--- ATTEMPTING TO LOAD MODEL VIA PICKLE ---")
@@ -29,59 +23,80 @@ except Exception as e:
     traceback.print_exc()
     model = None
 
-# ==========================================
-# 2. HEALTH CHECK ROUTE (For the browser)
-# ==========================================
-@app.route('/', methods=['GET'])
-def home():
-    if model is None:
-        return "Titanic API is running, BUT THE MODEL FAILED TO LOAD. Check Render logs.", 500
-    return "Titanic API is running perfectly and the Model is loaded!", 200
+@app.route('/')
+def index():
+    """Serves the main index.html frontend."""
+    return send_from_directory('.', 'index.html')
 
-# ==========================================
-# 3. PREDICTION ROUTE (For the frontend)
-# ==========================================
 @app.route('/predict', methods=['POST', 'OPTIONS'])
 def predict():
-    # Handle preflight requests from GitHub Pages
+    """Handles the prediction requests from the frontend."""
+    
+    # Handle CORS preflight requests from the browser
     if request.method == 'OPTIONS':
-        return jsonify({}), 200
-
-    # Ensure model exists before trying to predict
-    if model is None:
-        return jsonify({"error": "Model not loaded on the server."}), 500
-
+        return jsonify({'message': 'CORS preflight successful'}), 200
+        
+    if not model:
+        return jsonify({'error': 'Server Error: The machine learning model failed to load.'}), 500
+        
     try:
-        # Get JSON data from frontend request
-        data = request.get_json()
+        # Get data from the frontend JSON payload
+        data = request.json
         
-        # Extract features (Ensure these match your frontend JavaScript keys)
-        pclass = float(data.get('Pclass', 3))
-        sex = float(data.get('Sex', 0))
-        age = float(data.get('Age', 29))
-        sibsp = float(data.get('SibSp', 0))
-        parch = float(data.get('Parch', 0))
-        fare = float(data.get('Fare', 32.0))
-        embarked = float(data.get('Embarked', 0))
+        # --- 1. DATA PREPROCESSING ---
         
-        # Format for Scikit-Learn (2D array)
-        features = np.array([[pclass, sex, age, sibsp, parch, fare, embarked]])
+        # Convert Gender string to float (Female = 1, Male = 0)
+        gender_input = str(data.get('Sex', '')).lower()
+        if gender_input == 'female':
+            sex = 1.0
+        else:
+            sex = 0.0
+            
+        # Convert Embarked string to float (C = 0, Q = 1, S = 2)
+        embarked_input = str(data.get('Embarked', '')).lower()
+        if embarked_input == 'c':
+            embarked = 0.0
+        elif embarked_input == 'q':
+            embarked = 1.0
+        else:
+            embarked = 2.0
+            
+        # --- 2. FEATURE ARRAY ASSEMBLY ---
+        # Ensure these are in the EXACT order your Random Forest model was trained on!
+        features = [
+            float(data.get('Pclass', 3)),
+            float(sex),
+            float(data.get('Age', 30)),
+            float(data.get('SibSp', 0)),
+            float(data.get('Parch', 0)),
+            float(data.get('Fare', 32.0)),
+            float(embarked)
+        ]
         
-        # Generate Prediction
-        prediction = model.predict(features)[0]
+        # --- 3. MAKE PREDICTION ---
+        prediction = model.predict([features])
         
-        # Send response back to the website
+        # --- 4. FORMAT RESPONSE ---
+        survived = int(prediction[0])
+        
+        if survived == 1:
+            result_text = "Survived"
+        else:
+            result_text = "Did Not Survive"
+            
         return jsonify({
-            "prediction": int(prediction),
-            "status": "success"
+            'prediction': result_text, 
+            'survived_flag': survived
         })
-
+        
     except Exception as e:
+        # If there is a math or conversion error, log it and send it to the frontend
         print("--- PREDICTION ERROR ---")
         traceback.print_exc()
-        return jsonify({"error": str(e)}), 400
+        return jsonify({'error': f"Data processing error: {str(e)}"}), 400
 
-# Run the server
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=5000, debug=True)
+    # Bind to 0.0.0.0 for Render deployment compatibility
+    port = int(os.environ.get('PORT', 5000))
+    app.run(host='0.0.0.0', port=port)
 
