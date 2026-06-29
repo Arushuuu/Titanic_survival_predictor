@@ -2,11 +2,15 @@ import os
 import pickle
 import traceback
 from flask import Flask, request, jsonify, send_from_directory
+from flask_cors import CORS
 
+# Initialize Flask and enable CORS to allow your GitHub Pages frontend to connect
 app = Flask(__name__, static_folder='.', static_url_path='')
+CORS(app)
+
 basedir = os.path.abspath(os.path.dirname(__file__))
 
-# Pointing explicitly to the new, clean model file
+# Pointing explicitly to the clean, binary model file
 model_path = os.path.join(basedir, "final_titanic_model.pkl")
 
 # Load the model at startup
@@ -28,14 +32,10 @@ def index():
     """Serves the main index.html frontend."""
     return send_from_directory('.', 'index.html')
 
-@app.route('/predict', methods=['POST', 'OPTIONS'])
+@app.route('/predict', methods=['POST'])
 def predict():
     """Handles the prediction requests from the frontend."""
     
-    # Handle CORS preflight requests from the browser
-    if request.method == 'OPTIONS':
-        return jsonify({'message': 'CORS preflight successful'}), 200
-        
     if not model:
         return jsonify({'error': 'Server Error: The machine learning model failed to load.'}), 500
         
@@ -62,7 +62,7 @@ def predict():
             embarked = 2.0
             
         # --- 2. FEATURE ARRAY ASSEMBLY ---
-        # Ensure these are in the EXACT order your Random Forest model was trained on!
+        # Ensure these are in the EXACT order your Random Forest model was trained on
         features = [
             float(data.get('Pclass', 3)),
             float(sex),
