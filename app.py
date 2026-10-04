@@ -48,9 +48,9 @@ def predict():
         # Convert Gender string to float (Female = 1, Male = 0)
         gender_input = str(data.get('Sex', '')).lower()
         if gender_input == 'female':
-            sex = 1.0
-        else:
             sex = 0.0
+        else:
+            sex = 1.0
             
         # Convert Embarked string to float (C = 0, Q = 1, S = 2)
         embarked_input = str(data.get('Embarked', '')).lower()
